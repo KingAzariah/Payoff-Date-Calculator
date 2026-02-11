@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BHG Legal Days Calculator</title>
+<title>BHG Payoff Days Calculator</title>
 
 <style>
 :root{
@@ -135,8 +135,8 @@ input{
   <div class="hero-header">
     <div class="hero-text">
       <h1>
-        Calculate Legal Days<br>
-        Between Payment & Payoff
+        Calculate Days<br>
+        Between Last Payment & Payoff
       </h1>
     </div>
 
@@ -152,7 +152,7 @@ input{
     <label>Payoff Date</label>
     <input type="date" id="endDate">
 
-    <button class="button" onclick="calculate()">CALCULATE LEGAL DAYS</button>
+    <button class="button" onclick="calculate()">CALCULATE DAYS</button>
 
     <div class="result" id="result">—</div>
     <div class="small" id="details"></div>
@@ -235,24 +235,28 @@ function calculate(){
     return;
   }
 
-  let current = new Date(start); // start ON payment date
-  let count = 0;
+  // ✅ Calendar days: exclude payment date, include payoff date
+  const from = addDays(start, 1);
+  const to = end;
 
-  const holidays = getHolidays(start.getFullYear())
-    .concat(getHolidays(end.getFullYear()));
-
-  while(current <= end){
-    if(!isWeekend(current) && !holidays.includes(current.toDateString())){
-      count++;
-    }
-    current = addDays(current,1);
+  // If same day and we exclude start, result is 0
+  if (to < from) {
+    document.getElementById("result").textContent = "0 Days";
+    document.getElementById("details").textContent =
+      "No days between " + start.toLocaleDateString() + " and " + end.toLocaleDateString();
+    return;
   }
 
-  document.getElementById("result").textContent = count + " Legal Days";
+  // Compute difference in whole days safely at local midnight
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const diffDays = Math.floor((to.getTime() - from.getTime()) / msPerDay) + 1; // +1 to include payoff date
+
+  document.getElementById("result").textContent = diffDays + " Days";
   document.getElementById("details").textContent =
-    "Counting from " + start.toLocaleDateString() +
-    " through " + end.toLocaleDateString();
+    "Counting calendar days from " + start.toLocaleDateString() +
+    " to " + end.toLocaleDateString() + " (weekends/holidays included)";
 }
+
 
 </script>
 
