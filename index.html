@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Payoff Days Calculator</title>
+<title>BHG Legal Days Calculator</title>
 
 <style>
 :root{
@@ -14,9 +14,7 @@
   --gray-light: #E6E6E6;
 }
 
-*{
-  box-sizing:border-box;
-}
+*{ box-sizing:border-box; }
 
 body{
   margin:0;
@@ -70,13 +68,15 @@ label{
   color:var(--gray-light);
 }
 
-input{
+/* Bigger date input (in most browsers this also makes the popup calendar larger) */
+input[type="date"]{
   width:100%;
-  padding:14px;
-  border-radius:8px;
+  padding:18px;
+  border-radius:10px;
   border:none;
-  font-size:16px;
-  margin-bottom:20px;
+  font-size:20px;          /* bigger */
+  margin-bottom:24px;
+  cursor:pointer;
 }
 
 .button{
@@ -91,9 +91,7 @@ input{
   transition:0.3s ease;
 }
 
-.button:hover{
-  background: var(--gold-light);
-}
+.button:hover{ background: var(--gold-light); }
 
 .result{
   margin-top:30px;
@@ -116,108 +114,68 @@ input{
     gap:25px;
   }
 
-  .logo{
-    height:60px;
-  }
+  .logo{ height:60px; }
 
-  .hero-text h1{
-    font-size:34px;
-  }
+  .hero-text h1{ font-size:34px; }
+
+  input[type="date"]{ font-size:18px; padding:16px; }
 }
 </style>
 </head>
 
 <body>
+  <div class="container">
 
-<div class="container">
+    <!-- HEADER -->
+    <div class="hero-header">
+      <div class="hero-text">
+        <h1>
+          Calculate Legal Days<br>
+          Between Payment & Payoff
+        </h1>
+      </div>
 
-  <!-- HEADER -->
-  <div class="hero-header">
-    <div class="hero-text">
-      <h1>
-        Calculate Days<br>
-        Between Last Payment & Payoff
-      </h1>
+      <!-- Logo on the right -->
+      <img src="images/bhg_logo.jpg" alt="BHG Financial Logo" class="logo">
     </div>
 
-  
-  </div>
+    <!-- CALCULATOR -->
+    <div class="card">
+      <label for="startDate">Most Recent Payment Date</label>
+      <input type="date" id="startDate">
 
-  <!-- CALCULATOR -->
-  <div class="card">
+      <label for="endDate">Payoff Date</label>
+      <input type="date" id="endDate">
 
-    <label>Most Recent Payment Date</label>
-    <input type="date" id="startDate">
+      <button class="button" type="button" onclick="calculate()">CALCULATE DAYS</button>
 
-    <label>Payoff Date</label>
-    <input type="date" id="endDate">
-
-    <button class="button" onclick="calculate()">CALCULATE DAYS</button>
-
-    <div class="result" id="result">—</div>
-    <div class="small" id="details"></div>
+      <div class="result" id="result">—</div>
+      <div class="small" id="details"></div>
+    </div>
 
   </div>
-
-</div>
 
 <script>
-
-/* ---------- DATE HELPERS ---------- */
-
+/* ---------- DATE HELPERS (timezone-safe for <input type="date">) ---------- */
 function parseDateInputToLocal(yyyy_mm_dd){
   const [y, m, d] = yyyy_mm_dd.split("-").map(Number);
-  return new Date(y, m - 1, d); // prevents timezone shift bug
+  return new Date(y, m - 1, d); // local midnight (prevents "day before" issue)
 }
 
-function addDays(date, days){
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
+function formatYYYYMMDDLocal(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
-function isWeekend(date){
-  const day = date.getDay();
-  return day === 0 || day === 6;
-}
+/* ---------- DEFAULT PAYOFF DATE = TODAY ---------- */
+window.addEventListener("DOMContentLoaded", () => {
+  const today = new Date();
+  document.getElementById("endDate").value = formatYYYYMMDDLocal(today);
+});
 
-function observed(date){
-  const d = new Date(date);
-  if(d.getDay() === 6) d.setDate(d.getDate()-1);
-  if(d.getDay() === 0) d.setDate(d.getDate()+1);
-  return d;
-}
-
-function nthWeekday(year, month, weekday, n){
-  const first = new Date(year, month, 1);
-  const offset = (weekday - first.getDay() + 7) % 7;
-  return new Date(year, month, 1 + offset + (n-1)*7);
-}
-
-function lastWeekday(year, month, weekday){
-  const last = new Date(year, month+1, 0);
-  const offset = (last.getDay() - weekday + 7) % 7;
-  return new Date(year, month, last.getDate()-offset);
-}
-
-function getHolidays(year){
-  return [
-    observed(new Date(year,0,1)),        // New Year
-    nthWeekday(year,0,1,3),              // MLK
-    nthWeekday(year,1,1,3),              // Presidents Day
-    lastWeekday(year,4,1),               // Memorial Day
-    observed(new Date(year,5,19)),       // Juneteenth
-    observed(new Date(year,6,4)),        // July 4
-    nthWeekday(year,8,1,1),              // Labor Day
-    nthWeekday(year,9,1,2),              // Columbus Day
-    observed(new Date(year,10,11)),      // Veterans Day
-    nthWeekday(year,10,4,4),             // Thanksgiving
-    observed(new Date(year,11,25))       // Christmas
-  ].map(d => d.toDateString());
-}
-
-/* ---------- CALCULATION ---------- */
-
+/* ---------- CALCULATION (Calendar days: weekends + holidays INCLUDED) ---------- */
 function calculate(){
   const startVal = document.getElementById("startDate").value;
   const endVal = document.getElementById("endDate").value;
@@ -227,38 +185,42 @@ function calculate(){
     return;
   }
 
-  const start = parseDateInputToLocal(startVal);
-  const end = parseDateInputToLocal(endVal);
+  const paymentDate = parseDateInputToLocal(startVal);
+  const payoffDate = parseDateInputToLocal(endVal);
 
-  if(end < start){
+  if(payoffDate < paymentDate){
     alert("Payoff date must be after payment date.");
     return;
   }
 
-  // ✅ Calendar days: exclude payment date, include payoff date
-  const from = addDays(start, 1);
-  const to = end;
+  // ✅ Calendar days difference.
+  // Default behavior: EXCLUDE the payment date, INCLUDE the payoff date.
+  // Example: payment 1/1, payoff 1/2 => 1 day
+  //
+  // If you ever need to INCLUDE the payment date too, set includePaymentDate = true.
+  const includePaymentDate = false;
 
-  // If same day and we exclude start, result is 0
-  if (to < from) {
+  const start = includePaymentDate ? paymentDate : new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate() + 1);
+  const end = payoffDate;
+
+  if (end < start) {
     document.getElementById("result").textContent = "0 Days";
     document.getElementById("details").textContent =
-      "No days between " + start.toLocaleDateString() + " and " + end.toLocaleDateString();
+      "No days between " + paymentDate.toLocaleDateString() + " and " + payoffDate.toLocaleDateString() + ".";
     return;
   }
 
-  // Compute difference in whole days safely at local midnight
   const msPerDay = 24 * 60 * 60 * 1000;
-  const diffDays = Math.floor((to.getTime() - from.getTime()) / msPerDay) + 1; // +1 to include payoff date
+  const diffDays = Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1; // +1 to include payoff date
 
   document.getElementById("result").textContent = diffDays + " Days";
   document.getElementById("details").textContent =
-    "Counting calendar days from " + start.toLocaleDateString() +
-    " to " + end.toLocaleDateString() + " (weekends/holidays included)";
+    "Counting calendar days from " +
+    paymentDate.toLocaleDateString() +
+    " to " +
+    payoffDate.toLocaleDateString() +
+    " (weekends/holidays included).";
 }
-
-
 </script>
-
 </body>
 </html>
