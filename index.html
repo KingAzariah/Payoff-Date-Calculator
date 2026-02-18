@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Payoff Date Calculator</title>
+<title>Legal Days Calculator</title>
 
 <style>
 :root{
@@ -25,39 +25,28 @@ body{
 }
 
 .container{
-  max-width:1100px;
+  max-width:900px;
   margin:auto;
-  padding:60px 20px;
+  padding:80px 20px;
 }
 
-/* HERO HEADER */
-.hero-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:40px;
+.header{
   margin-bottom:60px;
 }
 
-.hero-text h1{
+.header h1{
   font-size:46px;
   font-weight:300;
   margin:0;
   line-height:1.2;
 }
 
-.logo{
-  height:75px;
-  width:auto;
-}
-
-/* CARD */
 .card{
   background: rgba(255,255,255,0.05);
   border:1px solid rgba(255,255,255,0.1);
   border-radius:12px;
   padding:30px;
-  max-width:600px;
+  max-width:650px;
   backdrop-filter: blur(6px);
 }
 
@@ -68,15 +57,20 @@ label{
   color:var(--gray-light);
 }
 
-/* Bigger date input (in most browsers this also makes the popup calendar larger) */
-input[type="date"]{
+input[type="text"].date-input{
   width:100%;
   padding:18px;
   border-radius:10px;
   border:none;
-  font-size:20px;          /* bigger */
-  margin-bottom:24px;
-  cursor:pointer;
+  font-size:20px;
+  margin-bottom:10px;
+  letter-spacing:.5px;
+}
+
+.hint{
+  font-size:12.5px;
+  margin-bottom:20px;
+  color:var(--gray-light);
 }
 
 .button{
@@ -106,119 +100,166 @@ input[type="date"]{
   color:var(--gray-light);
 }
 
-/* RESPONSIVE */
 @media (max-width:768px){
-  .hero-header{
-    flex-direction:column;
-    align-items:flex-start;
-    gap:25px;
-  }
-
-  .logo{ height:60px; }
-
-  .hero-text h1{ font-size:34px; }
-
-  input[type="date"]{ font-size:18px; padding:16px; }
+  .header h1{ font-size:34px; }
+  input[type="text"].date-input{ font-size:18px; padding:16px; }
 }
 </style>
 </head>
 
 <body>
-  <div class="container">
 
-    <!-- HEADER -->
-    <div class="hero-header">
-      <div class="hero-text">
-        <h1>
-          Calculate Legal Days<br>
-          Between Payment & Payoff
-        </h1>
-      </div>
+<div class="container">
 
-    </div>
+  <div class="header">
+    <h1>
+      Calculate Legal Days<br>
+      Between Payment & Payoff
+    </h1>
+  </div>
 
-    <!-- CALCULATOR -->
-    <div class="card">
-      <label for="startDate">Most Recent Payment Date</label>
-      <input type="date" id="startDate">
+  <div class="card">
 
-      <label for="endDate">Payoff Date</label>
-      <input type="date" id="endDate">
+    <label for="startDate">Most Recent Payment Date</label>
+    <input
+      type="text"
+      id="startDate"
+      class="date-input"
+      inputmode="numeric"
+      autocomplete="off"
+      placeholder="MM/DD/YYYY"
+      maxlength="10"
+    />
+    <div class="hint">Type 8 digits (MMDDYYYY). Slashes add automatically.</div>
 
-      <button class="button" type="button" onclick="calculate()">CALCULATE DAYS</button>
+    <label for="endDate">Payoff Date</label>
+    <input
+      type="text"
+      id="endDate"
+      class="date-input"
+      inputmode="numeric"
+      autocomplete="off"
+      placeholder="MM/DD/YYYY"
+      maxlength="10"
+    />
+    <div class="hint">Defaults to today.</div>
 
-      <div class="result" id="result">—</div>
-      <div class="small" id="details"></div>
-    </div>
+    <button class="button" type="button" onclick="calculate()">CALCULATE DAYS</button>
+
+    <div class="result" id="result">—</div>
+    <div class="small" id="details"></div>
 
   </div>
 
+</div>
+
 <script>
-/* ---------- DATE HELPERS (timezone-safe for <input type="date">) ---------- */
-function parseDateInputToLocal(yyyy_mm_dd){
-  const [y, m, d] = yyyy_mm_dd.split("-").map(Number);
-  return new Date(y, m - 1, d); // local midnight (prevents "day before" issue)
+
+/* ---------- INPUT MASK (MM/DD/YYYY) ---------- */
+function digitsOnly(s){
+  return (s || "").replace(/\D/g, "");
 }
 
-function formatYYYYMMDDLocal(date){
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+function formatMMDDYYYY(digits){
+  const mm = digits.slice(0,2);
+  const dd = digits.slice(2,4);
+  const yyyy = digits.slice(4,8);
+
+  let out = "";
+  if(mm) out += mm;
+  if(dd) out += "/" + dd;
+  if(yyyy) out += "/" + yyyy;
+  return out;
+}
+
+function attachMask(el){
+  el.addEventListener("input", () => {
+    const digits = digitsOnly(el.value).slice(0,8);
+    el.value = formatMMDDYYYY(digits);
+  });
+}
+
+/* ---------- DATE UTILITIES ---------- */
+function parseMMDDYYYY(str){
+  const parts = str.split("/");
+  if(parts.length !== 3) return null;
+
+  const mm = Number(parts[0]);
+  const dd = Number(parts[1]);
+  const yyyy = Number(parts[2]);
+
+  const d = new Date(yyyy, mm-1, dd);
+
+  if(d.getFullYear() !== yyyy ||
+     d.getMonth() !== mm-1 ||
+     d.getDate() !== dd){
+    return null;
+  }
+
+  return d;
+}
+
+function formatDate(date){
+  return date.toLocaleDateString();
+}
+
+function addDays(date, days){
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
 }
 
 /* ---------- DEFAULT PAYOFF DATE = TODAY ---------- */
 window.addEventListener("DOMContentLoaded", () => {
+  const startEl = document.getElementById("startDate");
+  const endEl = document.getElementById("endDate");
+
+  attachMask(startEl);
+  attachMask(endEl);
+
   const today = new Date();
-  document.getElementById("endDate").value = formatYYYYMMDDLocal(today);
+  const mm = String(today.getMonth()+1).padStart(2,"0");
+  const dd = String(today.getDate()).padStart(2,"0");
+  const yyyy = today.getFullYear();
+
+  endEl.value = `${mm}/${dd}/${yyyy}`;
 });
 
-/* ---------- CALCULATION (Calendar days: weekends + holidays INCLUDED) ---------- */
+/* ---------- CALCULATION (Calendar Days Included) ---------- */
 function calculate(){
-  const startVal = document.getElementById("startDate").value;
-  const endVal = document.getElementById("endDate").value;
+  const startStr = document.getElementById("startDate").value;
+  const endStr = document.getElementById("endDate").value;
 
-  if(!startVal || !endVal){
-    alert("Please select both dates.");
+  const paymentDate = parseMMDDYYYY(startStr);
+  const payoffDate = parseMMDDYYYY(endStr);
+
+  if(!paymentDate || !payoffDate){
+    alert("Please enter valid dates in MM/DD/YYYY format.");
     return;
   }
-
-  const paymentDate = parseDateInputToLocal(startVal);
-  const payoffDate = parseDateInputToLocal(endVal);
 
   if(payoffDate < paymentDate){
-    alert("Payoff date must be after payment date.");
+    alert("Payoff date must be on or after the payment date.");
     return;
   }
 
-  // ✅ Calendar days difference.
-  // Default behavior: EXCLUDE the payment date, INCLUDE the payoff date.
-  // Example: payment 1/1, payoff 1/2 => 1 day
-  //
-  // If you ever need to INCLUDE the payment date too, set includePaymentDate = true.
-  const includePaymentDate = false;
-
-  const start = includePaymentDate ? paymentDate : new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate() + 1);
+  // Exclude payment date, include payoff date
+  const start = addDays(paymentDate, 1);
   const end = payoffDate;
 
-  if (end < start) {
-    document.getElementById("result").textContent = "0 Days";
-    document.getElementById("details").textContent =
-      "No days between " + paymentDate.toLocaleDateString() + " and " + payoffDate.toLocaleDateString() + ".";
-    return;
-  }
+  const msPerDay = 24*60*60*1000;
+  const diff = Math.floor((end - start)/msPerDay) + 1;
 
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const diffDays = Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1; // +1 to include payoff date
-
-  document.getElementById("result").textContent = diffDays + " Days";
+  document.getElementById("result").textContent = diff + " Days";
   document.getElementById("details").textContent =
     "Counting calendar days from " +
-    paymentDate.toLocaleDateString() +
+    formatDate(paymentDate) +
     " to " +
-    payoffDate.toLocaleDateString() +
-    " (weekends/holidays included).";
+    formatDate(payoffDate) +
+    " (weekends included).";
 }
+
 </script>
+
 </body>
 </html>
